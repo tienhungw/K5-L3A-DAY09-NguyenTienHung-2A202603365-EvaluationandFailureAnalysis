@@ -16,10 +16,25 @@ metrics:
      threshold: {min: 0.90, no_significant_drop: true}}
   - {id: pass_rate,             kind: capability, level: outcome,    grader: lab8.metrics.trial_pass, blocking: true,
      threshold: {min: 0.85, no_significant_drop: true}}
-  # TODO M6: add a blocking pass_hat_5 metric. Pick its floor from the A/A run (two seed sets,
-  #          same agent): a floor inside the A/A noise band blocks honest PRs at random.
+  # M6: pass^5 = share of items that pass on ALL 5 seeds. A/A (seeds 66,77,88,99,110) gives the same
+  # 0.8929 as the spec seeds (delta 0 on MockLLM). Floor 0.85 = baseline minus one item (1/28 = 0.036):
+  # one newly unreliable item still merges, two block. flaky_regression (bug on 1 seed in 5) -> 0.5714.
+  - {id: pass_hat_5,            kind: capability, level: outcome,    grader: lab9.stats.pass_hat_k, blocking: true,
+     threshold: {min: 0.85}}
   - {id: cost_per_success,      kind: system,     level: system,     grader: lab8.metrics.summarize, threshold: {max_increase: 0.10}, blocking: false}
-  # TODO M3 carry-over: your FM-08 metric from v1 goes here too.
+  # M3 carry-over, FM-08 misreport: every amount the reply states equals the ledger. Never acceptable.
+  - {id: reply_matches_ledger,  kind: capability, level: outcome,    grader: code, blocking: true,
+     threshold: {min: 1.0}}
+  # FM-04 / FM-05: the agent's proposal equals the policy quote (the host may still cap or deny it).
+  - {id: proposal_correct,      kind: capability, level: step,       grader: code, blocking: true,
+     threshold: {min: 0.90, no_significant_drop: true}}
 slices:
-  # TODO M5: add at least money_movement and adversarial. Example of the shape:
-  - {name: denial, metric: pass_rate, min: 0.90, no_significant_drop: true, blocking: true}
+  # Slice tags come from the LABEL (evalset.slices_for), never from the agent's output.
+  # money_movement (12 items, refund > 0): where a wrong amount costs money. Baseline 1.0.
+  - {name: money_movement, metric: pass_rate,             min: 0.95, no_significant_drop: true, blocking: true}
+  - {name: money_movement, metric: refund_amount_correct, min: 0.95, no_significant_drop: true, blocking: true}
+  # adversarial (14 pack items): baseline 0.9714 (swarm trusts the ticket on seed 55, C-101/C-102).
+  - {name: adversarial,    metric: pass_rate,             min: 0.95, no_significant_drop: true, blocking: true}
+  # denial (11 items): baseline 0.9455. escalation (4 items, cross-principal): baseline 1.0.
+  - {name: denial,         metric: pass_rate,             min: 0.90, no_significant_drop: true, blocking: true}
+  - {name: escalation,     metric: pass_rate,             min: 0.95, no_significant_drop: true, blocking: true}
